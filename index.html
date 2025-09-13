@@ -24,8 +24,45 @@
     .pill { @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium tracking-wide bg-white/70 backdrop-blur border-white/50; }
     .card { @apply rounded-2xl border border-white/20 bg-white/60 backdrop-blur shadow-sm hover:shadow-md transition-shadow p-5; }
   </style>
+
+<!-- i18n widget: styles + Google init -->
+<style>
+  /* Hide Google’s default toolbar/banner */
+  .goog-te-banner-frame.skiptranslate, .goog-te-gadget-icon { display:none !important; }
+  body { top:0 !important; }
+  #google_translate_element { display:none; } /* keep Google’s dropdown hidden */
+  /* basic widget styling */
+  .i18n-menu { position:fixed; top:1rem; right:1rem; z-index:9999; }
+  .i18n-btn { display:inline-flex; align-items:center; gap:.5rem; padding:.5rem .75rem;
+              border-radius:12px; background:#fff; box-shadow:0 4px 14px rgba(0,0,0,.12);
+              border:1px solid #eee; cursor:pointer; font:500 14px system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif; }
+  .i18n-panel { margin-top:.4rem; width:14rem; background:#fff; border:1px solid #eee;
+                border-radius:14px; box-shadow:0 8px 24px rgba(0,0,0,.12); overflow:hidden; }
+  .i18n-item { padding:.5rem .75rem; display:flex; justify-content:space-between; align-items:center; cursor:pointer; }
+  .i18n-item:hover { background:#f8f8f8; }
+</style>
+
+<script>
+  // Called by Google’s script once it loads
+  function googleTranslateElementInit() {
+    new google.translate.TranslateElement({
+      pageLanguage: 'en',
+      includedLanguages: 'ar,zh-CN,fr,de,es,pt,ru,hi,ja,el',
+      autoDisplay: false
+    }, 'google_translate_element');
+  }
+</script>
+
+  
 </head>
+
+<!-- --> 
+  
 <body class="min-h-screen bg-gradient-to-b from-rose-50 to-white text-gray-900">
+
+<!-- i18n widget: required hidden container -->
+<div id="google_translate_element"></div>
+
   <div id="root"></div>
 
   <!-- React (CDN) -->
@@ -375,5 +412,129 @@
     root.render(React.createElement(App));
   })();
   </script>
+
+<script>
+  // --- Helper: set cookie (Google Translate reads "googtrans") ---
+  function setCookie(name, value, days) {
+    let expires = "";
+    if (days) {
+      const d = new Date();
+      d.setTime(d.getTime() + (days*24*60*60*1000));
+      expires = "; expires=" + d.toUTCString();
+    }
+    document.cookie = name + "=" + (value || "") + expires + "; path=/";
+  }
+
+  
+  // --- Languages (10) ---
+  const I18N_LANGS = [
+    { code: "en", label: "English" },
+    { code: "ar", label: "العربية", rtl: true },
+    { code: "zh-CN", label: "中文（简体）" },
+    { code: "fr", label: "Français" },
+    { code: "de", label: "Deutsch" },
+    { code: "es", label: "Español" },
+    { code: "pt", label: "Português" },
+    { code: "ru", label: "Русский" },
+    { code: "hi", label: "हिन्दी" },
+    { code: "ja", label: "日本語" },
+    { code: "el", label: "Ελληνικά" }
+  ];
+
+  // --- Apply language (sets cookie, toggles RTL, refreshes) ---
+  function applyLanguage(langCode) {
+    if (langCode === 'en') {
+      // Clear translation
+      setCookie('googtrans', '', -1);
+      document.documentElement.setAttribute('dir', 'ltr');
+      location.reload();
+      return;
+    }
+    setCookie('googtrans', '/en/' + langCode, 365);
+    const isRTL = !!I18N_LANGS.find(l => l.code === langCode && l.rtl);
+    document.documentElement.setAttribute('dir', isRTL ? 'rtl' : 'ltr');
+    // If Google engine isn’t loaded yet, page reload will re-init after load
+    location.reload();
+  }
+
+  // --- Create floating menu (vanilla JS) ---
+  function createI18nMenu() {
+    const wrap = document.createElement('div');
+    wrap.className = 'i18n-menu';
+
+    const btn = document.createElement('button');
+    btn.className = 'i18n-btn';
+    btn.type = 'button';
+    btn.innerHTML = '🌐 <span id="i18n-current">Language</span>';
+    wrap.appendChild(btn);
+
+    const panel = document.createElement('div');
+    panel.className = 'i18n-panel';
+    panel.style.display = 'none';
+    wrap.appendChild(panel);
+
+    // Fill panel
+    I18N_LANGS.forEach(l => {
+      const row = document.createElement('div');
+      row.className = 'i18n-item';
+      row.innerHTML = `<span>${l.label}</span><span style="opacity:.6">${l.code}</span>`;
+      row.addEventListener('click', () => { panel.style.display='none'; applyLanguage(l.code); });
+      panel.appendChild(row);
+    });
+
+    // Toggle
+    btn.addEventListener('click', () => {
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    });
+
+    // Set current label from cookie
+    const ck = (document.cookie.match(/(?:^|; )googtrans=([^;]+)/) || [])[1];
+    let current = 'en';
+    if (ck) {
+      const parts = decodeURIComponent(ck).split('/');
+      current = parts[2] || 'en';
+    }
+    document.getElementById('i18n-current')?.remove();
+    const span = document.createElement('span');
+    span.id = 'i18n-current';
+    span.textContent = (I18N_LANGS.find(l => l.code === current) || I18N_LANGS[0]).label;
+    btn.appendChild(span);
+
+    document.body.appendChild(wrap);
+  }
+
+  // --- Load Google’s website translator engine ---
+  function loadTranslateEngine() {
+    if (document.getElementById('gtranslate-loader')) return;
+    const s = document.createElement('script');
+    s.id = 'gtranslate-loader';
+    s.src = '//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit';
+    document.head.appendChild(s);
+  }
+
+  // Build widget & load engine now
+  document.addEventListener('DOMContentLoaded', function() {
+    createI18nMenu();
+    loadTranslateEngine();
+  });
+
+  // OPTIONAL (GDPR-friendlier):
+  // If you already use a consent flag like localStorage['cookie-consent-given'] === 'yes',
+  // replace the two lines above with:
+  //
+  // document.addEventListener('DOMContentLoaded', function() {
+  //   createI18nMenu();
+  //   if (localStorage.getItem('cookie-consent-given') === 'yes') {
+  //     loadTranslateEngine();
+  //   } else {
+  //     // Load after user accepts cookies:
+  //     window.addEventListener('storage', (e) => {
+  //       if (e.key === 'cookie-consent-given' && e.newValue === 'yes') loadTranslateEngine();
+  //     });
+  //   }
+  // });
+</script>
+
+  
 </body>
 </html>
