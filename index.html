@@ -1,0 +1,371 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Emirates Routes via Larnaca (LCA) — Unofficial Guide</title>
+  <meta name="description" content="Modern, static, standalone site listing Emirates routes served via Larnaca Airport (LCA) — direct flights to Dubai/Malta and intermediate routes via Dubai to global destinations." />
+  <link rel="icon" href="data:," />
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :focus-visible { outline: 3px solid #ef4444; outline-offset: 2px; }
+    .btn { @apply inline-flex items-center rounded-xl px-4 py-2 font-medium shadow; }
+    .btn-primary { @apply bg-red-600 text-white hover:bg-red-700; }
+    .btn-ghost { @apply bg-white/85 backdrop-blur text-gray-900 hover:bg-white; }
+    .pill { @apply inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium tracking-wide bg-white/70 backdrop-blur border-white/50; }
+    .card { @apply rounded-2xl border border-white/20 bg-white/60 backdrop-blur shadow-sm hover:shadow-md transition-shadow p-5; }
+  </style>
+</head>
+<body class="min-h-screen bg-gradient-to-b from-rose-50 to-white text-gray-900">
+  <div id="root"></div>
+
+  <!-- React (CDN) -->
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+
+  <script type="text/javascript">
+  ;(() => {
+    const { useMemo, useState, useEffect } = React;
+
+    // ---------- Data (embedded; no CSV needed) ----------
+    const HERO_BG =
+      "https://images.unsplash.com/photo-1518684079-3c830dcef090?q=80&w=1920&auto=format&fit=crop"; // Airliner background (stock)
+
+    // Direct routes actually operated by Emirates from Larnaca (LCA)
+    const DIRECT_ROUTES = [
+      { from: "Larnaca (LCA)", to: "Dubai (DXB)", country: "United Arab Emirates", continent: "Middle East", notes: "Daily service (seasonal variations)" },
+      { from: "Larnaca (LCA)", to: "Malta (MLA)", country: "Malta", continent: "Europe", notes: "Part of DXB→LCA→MLA rotation; frequency varies" },
+    ];
+
+    // Curated intermediate destinations via Dubai
+    const INTERMEDIATE_ROUTES = [
+      // Europe
+      { country: "United Kingdom", city: "London", airport: "LHR", continent: "Europe" },
+      { country: "United Kingdom", city: "Manchester", airport: "MAN", continent: "Europe" },
+      { country: "France", city: "Paris", airport: "CDG", continent: "Europe" },
+      { country: "Germany", city: "Frankfurt", airport: "FRA", continent: "Europe" },
+      { country: "Germany", city: "Munich", airport: "MUC", continent: "Europe" },
+      { country: "Netherlands", city: "Amsterdam", airport: "AMS", continent: "Europe" },
+      { country: "Italy", city: "Milan", airport: "MXP", continent: "Europe" },
+      { country: "Spain", city: "Barcelona", airport: "BCN", continent: "Europe" },
+      { country: "Greece", city: "Athens", airport: "ATH", continent: "Europe" },
+      { country: "Austria", city: "Vienna", airport: "VIE", continent: "Europe" },
+      { country: "Switzerland", city: "Zurich", airport: "ZRH", continent: "Europe" },
+      { country: "Czechia", city: "Prague", airport: "PRG", continent: "Europe" },
+      { country: "Denmark", city: "Copenhagen", airport: "CPH", continent: "Europe" },
+      { country: "Norway", city: "Oslo", airport: "OSL", continent: "Europe" },
+      { country: "Sweden", city: "Stockholm", airport: "ARN", continent: "Europe" },
+      { country: "Poland", city: "Warsaw", airport: "WAW", continent: "Europe" },
+      { country: "Portugal", city: "Lisbon", airport: "LIS", continent: "Europe" },
+      { country: "Hungary", city: "Budapest", airport: "BUD", continent: "Europe" },
+      { country: "Russia", city: "Moscow", airport: "DME", continent: "Europe" },
+      { country: "Ireland", city: "Dublin", airport: "DUB", continent: "Europe" },
+      // Middle East
+      { country: "Saudi Arabia", city: "Riyadh", airport: "RUH", continent: "Middle East" },
+      { country: "Saudi Arabia", city: "Jeddah", airport: "JED", continent: "Middle East" },
+      { country: "Saudi Arabia", city: "Dammam", airport: "DMM", continent: "Middle East" },
+      { country: "Kuwait", city: "Kuwait City", airport: "KWI", continent: "Middle East" },
+      { country: "Bahrain", city: "Manama", airport: "BAH", continent: "Middle East" },
+      { country: "Jordan", city: "Amman", airport: "AMM", continent: "Middle East" },
+      { country: "Lebanon", city: "Beirut", airport: "BEY", continent: "Middle East" },
+      // Africa
+      { country: "Egypt", city: "Cairo", airport: "CAI", continent: "Africa" },
+      { country: "Morocco", city: "Casablanca", airport: "CMN", continent: "Africa" },
+      { country: "Tunisia", city: "Tunis", airport: "TUN", continent: "Africa" },
+      { country: "Ethiopia", city: "Addis Ababa", airport: "ADD", continent: "Africa" },
+      { country: "Kenya", city: "Nairobi", airport: "NBO", continent: "Africa" },
+      { country: "Tanzania", city: "Dar es Salaam", airport: "DAR", continent: "Africa" },
+      { country: "Uganda", city: "Entebbe", airport: "EBB", continent: "Africa" },
+      { country: "South Africa", city: "Johannesburg", airport: "JNB", continent: "Africa" },
+      { country: "South Africa", city: "Cape Town", airport: "CPT", continent: "Africa" },
+      { country: "Zimbabwe", city: "Harare", airport: "HRE", continent: "Africa" },
+      { country: "Zambia", city: "Lusaka", airport: "LUN", continent: "Africa" },
+      { country: "Seychelles", city: "Mahe Island", airport: "SEZ", continent: "Africa" },
+      // Asia & Pacific
+      { country: "India", city: "Delhi", airport: "DEL", continent: "Asia & Pacific" },
+      { country: "India", city: "Mumbai", airport: "BOM", continent: "Asia & Pacific" },
+      { country: "India", city: "Bengaluru", airport: "BLR", continent: "Asia & Pacific" },
+      { country: "Pakistan", city: "Karachi", airport: "KHI", continent: "Asia & Pacific" },
+      { country: "Sri Lanka", city: "Colombo", airport: "CMB", continent: "Asia & Pacific" },
+      { country: "Bangladesh", city: "Dhaka", airport: "DAC", continent: "Asia & Pacific" },
+      { country: "Thailand", city: "Bangkok", airport: "BKK", continent: "Asia & Pacific" },
+      { country: "Thailand", city: "Phuket", airport: "HKT", continent: "Asia & Pacific" },
+      { country: "Singapore", city: "Singapore", airport: "SIN", continent: "Asia & Pacific" },
+      { country: "Malaysia", city: "Kuala Lumpur", airport: "KUL", continent: "Asia & Pacific" },
+      { country: "Indonesia", city: "Jakarta", airport: "CGK", continent: "Asia & Pacific" },
+      { country: "Philippines", city: "Manila", airport: "MNL", continent: "Asia & Pacific" },
+      { country: "Vietnam", city: "Ho Chi Minh City", airport: "SGN", continent: "Asia & Pacific" },
+      { country: "China", city: "Beijing", airport: "PEK", continent: "Asia & Pacific" },
+      { country: "China", city: "Shanghai", airport: "PVG", continent: "Asia & Pacific" },
+      { country: "Japan", city: "Tokyo", airport: "NRT", continent: "Asia & Pacific" },
+      { country: "South Korea", city: "Seoul", airport: "ICN", continent: "Asia & Pacific" },
+      { country: "Australia", city: "Sydney", airport: "SYD", continent: "Asia & Pacific" },
+      { country: "Australia", city: "Melbourne", airport: "MEL", continent: "Asia & Pacific" },
+      { country: "Australia", city: "Perth", airport: "PER", continent: "Asia & Pacific" },
+      { country: "New Zealand", city: "Auckland", airport: "AKL", continent: "Asia & Pacific" },
+      // Americas
+      { country: "United States", city: "New York", airport: "JFK", continent: "The Americas" },
+      { country: "United States", city: "Houston", airport: "IAH", continent: "The Americas" },
+      { country: "United States", city: "Los Angeles", airport: "LAX", continent: "The Americas" },
+      { country: "United States", city: "Chicago", airport: "ORD", continent: "The Americas" },
+      { country: "United States", city: "Boston", airport: "BOS", continent: "The Americas" },
+      { country: "United States", city: "Miami", airport: "MIA", continent: "The Americas" },
+      { country: "United States", city: "San Francisco", airport: "SFO", continent: "The Americas" },
+      { country: "Canada", city: "Toronto", airport: "YYZ", continent: "The Americas" },
+      { country: "Canada", city: "Montreal", airport: "YUL", continent: "The Americas" },
+      { country: "Brazil", city: "São Paulo", airport: "GRU", continent: "The Americas" },
+      { country: "Argentina", city: "Buenos Aires", airport: "EZE", continent: "The Americas" },
+      { country: "Mexico", city: "Mexico City", airport: "MEX", continent: "The Americas" },
+    ];
+
+    const continents = ["Europe", "Middle East", "Africa", "Asia & Pacific", "The Americas"];
+
+    // ---------- Helpers ----------
+    function toCSV(rows) {
+      if (!rows || !rows.length) return "";
+      const cols = Object.keys(rows[0]);
+      const escape = (v) => ('"' + String(v).replace(/"/g, '""') + '"');
+      const header = cols.map(escape).join(",");
+      const body = rows.map(r => cols.map(c => escape(r[c] ?? "")).join(",")).join("\\n");
+      return header + "\\n" + body;
+    }
+
+    // ---------- UI Components ----------
+    const Pill = ({ children }) => React.createElement("span", { className: "pill" }, children);
+
+    const Card = ({ title, subtitle, children }) => (
+      React.createElement("div", { className: "card" },
+        React.createElement("div", { className: "mb-3" },
+          React.createElement("h3", { className: "text-lg font-semibold text-gray-900" }, title),
+          subtitle && React.createElement("p", { className: "text-sm text-gray-600 mt-1" }, subtitle)
+        ),
+        children
+      )
+    );
+
+    const Section = ({ id, title, subtitle, children, badge }) => (
+      React.createElement("section", { id, className: "max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 py-12" },
+        React.createElement("div", { className: "mb-6 flex items-center gap-3" },
+          badge && React.createElement(Pill, null, badge),
+          React.createElement("h2", { className: "text-2xl sm:text-3xl font-bold text-gray-900" }, title)
+        ),
+        subtitle && React.createElement("p", { className: "text-gray-600 mb-6 max-w-3xl" }, subtitle),
+        children
+      )
+    );
+
+    function App() {
+      const [search, setSearch] = useState("");
+      const [continent, setContinent] = useState("All");
+      const [country, setCountry] = useState("All");
+
+      const countriesByContinent = useMemo(() => {
+        const map = new Map();
+        INTERMEDIATE_ROUTES.forEach((r) => {
+          if (!map.has(r.continent)) map.set(r.continent, new Set());
+          map.get(r.continent).add(r.country);
+        });
+        return map;
+      }, []);
+
+      const filtered = useMemo(() => {
+        return INTERMEDIATE_ROUTES.filter((r) => {
+          const matchCont = continent === "All" || r.continent === continent;
+          const matchCountry = country === "All" || r.country === country;
+          const q = search.trim().toLowerCase();
+          const matchQ = !q || r.city.toLowerCase().includes(q) || r.country.toLowerCase().includes(q) || r.airport.toLowerCase().includes(q);
+          return matchCont && matchCountry && matchQ;
+        }).sort((a, b) => (a.country === b.country ? a.city.localeCompare(b.city) : a.country.localeCompare(b.country)));
+      }, [search, continent, country]);
+
+      const continentCounts = useMemo(() => {
+        const counts = Object.fromEntries(continents.map((c) => [c, 0]));
+        for (const r of INTERMEDIATE_ROUTES) counts[r.continent]++;
+        return counts;
+      }, []);
+
+      function exportFiltered() {
+        const csv = toCSV(filtered);
+        const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "LCA_Emirates_Intermediate_Routes.csv";
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      useEffect(() => {
+        // Smooth anchor scrolling
+        const onClick = (e) => {
+          const a = e.target.closest("a[href^='#']");
+          if (!a) return;
+          const id = a.getAttribute("href").slice(1);
+          const el = document.getElementById(id);
+          if (el) {
+            e.preventDefault();
+            el.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        };
+        document.addEventListener("click", onClick);
+        return () => document.removeEventListener("click", onClick);
+      }, []);
+
+      return (
+        React.createElement(React.Fragment, null,
+          // Hero
+          React.createElement("div", { className: "relative isolate", style: { backgroundImage: `url(${HERO_BG})`, backgroundSize: "cover", backgroundPosition: "center" } },
+            React.createElement("div", { className: "absolute inset-0 bg-gradient-to-b from-black/35 via-black/20 to-white/0" }),
+            React.createElement("header", { className: "max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 py-6 flex items-center justify-between" },
+              React.createElement("div", { className: "flex items-center gap-3" },
+                React.createElement("div", { className: "h-9 w-9 rounded-xl bg-red-600 flex items-center justify-center shadow" },
+                  React.createElement("span", { className: "text-white font-bold" }, "EK")
+                ),
+                React.createElement("div", null,
+                  React.createElement("p", { className: "text-white/90 text-sm leading-tight" }, "Unofficial Guide"),
+                  React.createElement("h1", { className: "text-white text-xl sm:text-2xl font-semibold leading-tight" }, "Emirates Routes via Larnaca (LCA)")
+                )
+              ),
+              React.createElement("nav", { className: "hidden sm:flex items-center gap-4 text-white/90" },
+                React.createElement("a", { href: "#direct", className: "hover:text-white" }, "Direct"),
+                React.createElement("a", { href: "#intermediate", className: "hover:text-white" }, "Intermediate"),
+                React.createElement("a", { href: "#sources", className: "hover:text-white" }, "Booking & Sources")
+              )
+            ),
+            React.createElement("div", { className: "max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 py-16 sm:py-24" },
+              React.createElement("div", { className: "max-w-3xl" },
+                React.createElement("span", { className: "pill" }, "Cyprus \u2192 Dubai \u2192 World"),
+                React.createElement("h2", { className: "mt-4 text-3xl sm:text-5xl font-bold text-white drop-shadow" }, "Routes served by Emirates through Larnaca Airport"),
+                React.createElement("p", { className: "mt-4 text-white/90 text-lg max-w-2xl" },
+                  "This modern static site shows the ", React.createElement("strong", null, "immediate (direct)"), " routes from ",
+                  React.createElement("strong", null, "LCA \u2192 Dubai"), " and ", React.createElement("strong", null, "LCA \u2192 Malta"), ", and the ",
+                  React.createElement("strong", null, "intermediate (via Dubai)"), " routes from LCA to destinations worldwide (e.g., ", React.createElement("em", null, "Moscow"), ") with a smooth connection at Dubai."
+                ),
+                React.createElement("div", { className: "mt-6 flex flex-wrap gap-3" },
+                  React.createElement("a", { href: "#direct", className: "btn btn-primary" }, "View Direct Routes"),
+                  React.createElement("a", { href: "#intermediate", className: "btn btn-ghost" }, "Browse Intermediate Routes")
+                )
+              ),
+              React.createElement("div", { className: "h-16" })
+            )
+          ),
+
+          // Direct routes
+          React.createElement(Section, { id: "direct", title: "Direct routes from Larnaca (operated by Emirates)", subtitle: "Nonstop flights currently served from LCA. Frequencies and schedules can vary by season — always verify on Emirates.com before booking.", badge: "Immediate routes" },
+            React.createElement("div", { className: "grid sm:grid-cols-2 gap-5" },
+              DIRECT_ROUTES.map((r) => React.createElement(Card, { key: r.to, title: `${r.from} \u2192 ${r.to}`, subtitle: `${r.country} • ${r.continent}` },
+                React.createElement("p", { className: "text-sm text-gray-700" }, r.notes)
+              ))
+            )
+          ),
+
+          // Intermediate routes
+          React.createElement(Section, { id: "intermediate", title: "Intermediate routes (via Dubai)", subtitle: "Reach these destinations from Larnaca with a smooth connection in Dubai (LCA → DXB → destination). Filter by continent, country, or search by city/airport code.", badge: "Via Dubai" },
+            React.createElement("div", { className: "rounded-2xl border border-gray-200 bg-white p-4 sm:p-5 shadow-sm" },
+              React.createElement("div", { className: "grid md:grid-cols-5 gap-3" },
+                React.createElement("div", { className: "md:col-span-2" },
+                  React.createElement("label", { className: "text-sm font-medium text-gray-700", htmlFor: "search" }, "Search"),
+                  React.createElement("input", {
+                    id: "search", type: "text", value: search, onChange: (e) => setSearch(e.target.value),
+                    placeholder: "Try: Moscow, FRA, United States…",
+                    className: "mt-1 w-full rounded-xl border border-gray-300 px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500"
+                  })
+                ),
+                React.createElement("div", null,
+                  React.createElement("label", { className: "text-sm font-medium text-gray-700", htmlFor: "continent" }, "Continent"),
+                  React.createElement("select", {
+                    id: "continent", className: "mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500",
+                    value: continent, onChange: (e) => { setContinent(e.target.value); setCountry("All"); }
+                  },
+                    React.createElement("option", null, "All"),
+                    continents.map((c) => React.createElement("option", { key: c }, c))
+                  )
+                ),
+                React.createElement("div", null,
+                  React.createElement("label", { className: "text-sm font-medium text-gray-700", htmlFor: "country" }, "Country"),
+                  React.createElement("select", {
+                    id: "country", className: "mt-1 w-full rounded-xl border border-gray-300 px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-red-500",
+                    value: country, onChange: (e) => setCountry(e.target.value)
+                  },
+                    React.createElement("option", null, "All"),
+                    (continent === "All"
+                      ? Array.from(new Set(INTERMEDIATE_ROUTES.map((r) => r.country)))
+                      : Array.from(countriesByContinent.get(continent) || [])
+                    ).sort().map((ctry) => React.createElement("option", { key: ctry }, ctry))
+                  )
+                ),
+                React.createElement("div", { className: "flex items-end" },
+                  React.createElement("button", { className: "btn btn-ghost w-full", onClick: exportFiltered }, "Export filtered CSV")
+                )
+              ),
+
+              // Stats
+              React.createElement("div", { className: "mt-4 grid sm:grid-cols-5 gap-3 text-sm text-gray-700" },
+                React.createElement("div", { className: "rounded-xl bg-gray-50 p-3" }, "Total destinations in list: ", React.createElement("strong", null, INTERMEDIATE_ROUTES.length)),
+                continents.map((c) => React.createElement("div", { key: c, className: "rounded-xl bg-gray-50 p-3" }, c, ": ", React.createElement("strong", null, (INTERMEDIATE_ROUTES.filter((r) => r.continent === c).length))))
+              ),
+
+              // Results
+              React.createElement("div", { className: "mt-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-4" },
+                filtered.map((r, i) =>
+                  React.createElement("div", { key: r.country + "-" + r.city + "-" + i, className: "rounded-xl border border-gray-200 p-4 hover:shadow-sm" },
+                    React.createElement("div", { className: "flex items-center justify-between" },
+                      React.createElement("h4", { className: "font-semibold" }, r.city, " ", React.createElement("span", { className: "text-gray-500 text-sm" }, "(", r.airport, ")")),
+                      React.createElement("span", { className: "text-xs rounded-full bg-red-50 text-red-700 px-2 py-1" }, "via DXB")
+                    ),
+                    React.createElement("p", { className: "text-sm text-gray-700 mt-1" }, r.country, " • ", r.continent),
+                    React.createElement("p", { className: "text-xs text-gray-500 mt-2" }, "Typical routing: LCA → DXB → ", r.airport)
+                  )
+                ),
+                filtered.length === 0 && React.createElement("p", { className: "text-gray-600" }, "No matches. Try clearing filters.")
+              )
+            )
+          ),
+
+          // Sources / Booking
+          React.createElement(Section, { id: "sources", title: "Booking & official resources", subtitle: "This is an independent, informational page. Always confirm schedules and availability on the official Emirates website before booking.", badge: "Plan & Book" },
+            React.createElement("div", { className: "grid md:grid-cols-2 gap-5" },
+              React.createElement(Card, { title: "Emirates — Route map", subtitle: "Interactive map of current destinations" },
+                React.createElement("a", {
+                  className: "btn btn-primary mt-2",
+                  href: "https://www.emirates.com/english/destinations/route-map/",
+                  target: "_blank",
+                  rel: "noreferrer noopener"
+                }, "Open route map")
+              ),
+              React.createElement(Card, { title: "Book on Emirates.com", subtitle: "Search fares and schedules" },
+                React.createElement("a", {
+                  className: "btn btn-ghost mt-2 bg-gray-900 text-white hover:bg-black",
+                  href: "https://www.emirates.com/english/",
+                  target: "_blank",
+                  rel: "noreferrer noopener"
+                }, "Go to Emirates.com")
+              )
+            ),
+            React.createElement("div", { className: "mt-6 text-sm text-gray-600" },
+              React.createElement("p", null,
+                React.createElement("strong", null, "Disclaimer:"), " This site is ", React.createElement("em", null, "not affiliated"), " with Emirates. Data here is curated for convenience and may be incomplete or change without notice. For reservations and official schedules, use Emirates.com."
+              )
+            )
+          ),
+
+          // Footer
+          React.createElement("footer", { className: "max-w-6xl mx-auto px-5 sm:px-6 lg:px-8 pb-10" },
+            React.createElement("div", { className: "border-t border-gray-200 pt-6 text-sm text-gray-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" },
+              React.createElement("p", null, "© ", new Date().getFullYear(), " Larnaca Routes — Unofficial reference. Built for quick, clean browsing of Emirates connectivity via LCA."),
+              React.createElement("p", null, "Background photo via Unsplash. Emirates is a trademark of Emirates.")
+            )
+          )
+        )
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(React.createElement(App));
+  })();
+  </script>
+</body>
+</html>
