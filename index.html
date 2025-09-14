@@ -547,5 +547,71 @@ React.createElement("div", { className: "absolute inset-0 pointer-events-none bg
       loadTranslateEngine();
     });
   </script>
+
+<script>
+(function () {
+  // Use CounterAPI V1 public endpoints (no API key needed)
+  // Docs: https://api.counterapi.dev/v1/:namespace/:name/up and / (get)
+  const API = "https://api.counterapi.dev/v1";
+
+  // 👉 Make these unguessable to reduce tampering
+  const NS = "NAMESPACE_HERE_1d4a2c8b5f2e4a90b13d2a8c7f"; // long random string
+  const VISITOR_NAME = "visitors_total";
+  const CLICK_NAME   = "emirates_banner_clicks";
+
+  // DOM refs
+  const visitorEl = document.getElementById("visitor-count");
+  const clicksEl  = document.getElementById("emirates-clicks-count");
+  const bannerEl  = document.getElementById("emirates-banner");
+
+  // Helpers
+  const fmt = n => Number(n || 0).toLocaleString();
+  const get  = (name) => fetch(`${API}/${NS}/${name}`).then(r => r.json()).then(j => j.count ?? j.value ?? 0);
+  const up   = (name) => fetch(`${API}/${NS}/${name}/up`).then(r => r.json()).then(j => j.count ?? j.value ?? 0);
+
+  // VISITOR COUNTER — throttle to 1x / 24h per device
+  const KEY = "vc_last_hit";
+  const last = Number(localStorage.getItem(KEY) || 0);
+  const now  = Date.now();
+  const DAY  = 24*60*60*1000;
+
+  (async () => {
+    try {
+      if (now - last > DAY) {
+        await up(VISITOR_NAME);
+        localStorage.setItem(KEY, String(now));
+      }
+    } catch (e) { /* ignore */ }
+    try {
+      const count = await get(VISITOR_NAME);
+      if (visitorEl) visitorEl.textContent = fmt(count);
+    } catch (e) { if (visitorEl) visitorEl.textContent = "—"; }
+  })();
+
+  // BANNER CLICK COUNTER
+  (async () => {
+    try {
+      const count = await get(CLICK_NAME);
+      if (clicksEl) clicksEl.textContent = fmt(count);
+    } catch (e) { if (clicksEl) clicksEl.textContent = "—"; }
+  })();
+
+  if (bannerEl) {
+    bannerEl.addEventListener("click", () => {
+      // fire-and-forget increment, don’t block navigation
+      try {
+        navigator.sendBeacon?.(`${API}/${NS}/${CLICK_NAME}/up`, new Blob());
+      } catch (e) {
+        fetch(`${API}/${NS}/${CLICK_NAME}/up`).catch(()=>{});
+      }
+      // optimistic UI bump
+      const current = parseInt((clicksEl?.textContent || "0").replace(/,/g,""), 10) || 0;
+      if (clicksEl) clicksEl.textContent = fmt(current + 1);
+    });
+  }
+})();
+</script>
+
+  
 </body>
 </html>
