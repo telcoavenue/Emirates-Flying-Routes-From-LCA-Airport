@@ -122,12 +122,20 @@
                transition group-hover:brightness-105 group-hover:shadow-xl"
         loading="eager" decoding="async">
     </a>
+    <div>Banner clicks: <strong id="emirates-clicks-count">—</strong></div> 
     <p class="mt-2 text-center text-xs text-gray-500">
       Unofficial fan-made banner — not affiliated with Emirates.
     </p>
   </div>
 
 <!-- --> 
+
+
+
+
+
+
+<!-- -->
 
   
   <div id="root"></div>
@@ -439,6 +447,7 @@ React.createElement("div", { className: "absolute inset-0 pointer-events-none bg
             React.createElement("div", { className: "border-t border-gray-200 pt-6 text-sm text-gray-600 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3" },
               React.createElement("p", null, "© ", new Date().getFullYear(), " Larnaca Routes — Unofficial reference. Built for quick, clean browsing of Emirates connectivity via LCA."),
               React.createElement("p", null, "Background photo via Unsplash. Emirates is a trademark of Emirates.")
+                                
             )
           )
         )
@@ -612,6 +621,8 @@ React.createElement("div", { className: "absolute inset-0 pointer-events-none bg
 })();
 </script>
 
+  <!-- Visible counters -->
+<div>Visitors: <strong id="visitor-count">—</strong></div>
   
 </body>
 </html>
